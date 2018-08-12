@@ -1,8 +1,6 @@
 
-#setting up the strategy
+
 # install.packages("purrr")
-
-
 # install.packages("class")
 require(class) # for knn
 # install.packages("e1071")
@@ -38,20 +36,20 @@ require(doParallel)
 # install.packages("doSNOW")
 require(doSNOW) # for parallel computing
 
-# distributing computations among # of coreS in CPU
+# distributing computations among # of cores in CPU
 getDoParWorkers()
 getDoParRegistered()
 getDoParName()
 getDoParVersion()
 cl <- makeCluster(spec=4, type="SOCK")
 registerDoSNOW(cl) 
-stopCluster(cl)
+#stopCluster(cl)
 
 
 
-income<-round(runif(100,min=1000,max=5000),0)
-no_of_wife <-round(rnorm(100,mean=25,sd=8),0)
-no_of_child<-round(rnorm(100,mean=100,sd=45),0)
+income <- round(runif(100,min=1000,max=5000),0)
+no_of_wife <- round(rnorm(100,mean=25,sd=8),0)
+no_of_child <- round(rnorm(100,mean=100,sd=45),0)
 alive <- rbernoulli(100, p = 0.6)
 dataset<- data.frame(income,no_of_wife,no_of_child,alive)
 
@@ -81,33 +79,35 @@ training_set[,-4] <- scale(training_set[,-4])
 test_set[,-4] <- scale(test_set[,-4])
 
 
-###################################
-#K_FOLD CROSS VALIDATION
-#WILL CROSS VALIDATE
+############################################################################################
+# K_FOLD CROSS VALIDATION
+# WE WILL CROSS VALIDATE
 #LOGISTIC,KNN,SVM,KERNEL SVM,DECISION TREE,RANDOM FOREST,NAIVE BAYES,XGBOOST,ADABOOST
+#############################################################################################
 set.seed(12345)
-# folds<- createMultiFolds(training_set$alive,k=10,times=10) [ NOT IN KUHN'S SLIDE]
-Control <- trainControl(method="repeatedcv",number=10,repeats = 10,classProbs = T,summaryFunction = twoClassSummary)# for CALCULATING ROC classProbS=T IS REQUIRED
+# folds<- createMultiFolds(training_set$alive,k=10,times=10)
+Control <- trainControl(method="repeatedcv",number=10,repeats = 10,classProbs = T,summaryFunction = twoClassSummary) #FOR CALCULATING ROC classProbS=T IS REQUIRED
 
 
-# use tuneLength or tunegrid parameter to find the optimum performance of each model
-#Use getModelInfo() to get a list of tuning parameters for each model or see http://topepo.github.io/caret/available-models.html.
+# Use tuneLength or tunegrid parameter to find the optimum performance of each model
+# Use getModelInfo() to get a list of tuning parameters for each model or see http://topepo.github.io/caret/available-models.html.
 set.seed(12345)
 model_svm_cross <- train(form=alive~.,data=training_set,
-                         trControl=Control,tuneLength=5 ,method="svmLinear2",metric="ROC") # library e1071.can also use metric="ROC",tuneGrid <- expand.grid(cost(0.01,0.1,0,25))
+                         trControl=Control,tuneLength=5 ,method="svmLinear2",metric="ROC")   # library e1071.can also use metric="ROC",tuneGrid <- expand.grid(cost(0.01,0.1,0,25))
 
 set.seed(12345)
 model_ksvm_cross <- train(form=alive~.,data=training_set,
-                          trControl=Control,tuneLength=5,method="svmRadial",metric="Accuracy")  # library kernlab.can also use metric="ROC"
+                          trControl=Control,tuneLength=5,method="svmRadial",metric="Accuracy")    # library kernlab.can also use metric="ROC"
 
 set.seed(12345)
 model_bayes2_cross <- train(form=alive~.,data=training_set,
-                            trControl=Control,tuneLength=5,method="naive_bayes",metric="Accuracy") #library naivebayes.can also use metric="ROC"
+                            trControl=Control,tuneLength=5,method="naive_bayes",metric="Accuracy")   #library naivebayes.can also use metric="ROC"
 
 
 set.seed(12345)
 model_knn_cross <- train(form=alive~.,data=training_set,ntree=500,
                         tuneLength=5,method="kknn",metric="Accuracy",trControl=Control)
+
 #check for overfitting
 #install.packages("learningCurve")
 require(learningCurve)
@@ -129,17 +129,16 @@ hist3D(model_knn_cross)
 
 ########################################
 #storing the results
+########################################
 results <- resamples(list(Bayes=model_bayes2_cross,KSVM=model_ksvm_cross,svm=model_svm_cross,knn=model_knn_cross))
 summary(results)
 dotplot(results) 
-bwplot(results)
-
-#from here we get our best model
+bwplot(results)   #from here we get our best model
 
 
-#######################################
+#####################################################
 # model evaluation and diagonistics(for best models)
-########################################
+####################################################
 
 # Goodness of fit
     # a) LRT (FOR REGRESSION)
@@ -151,23 +150,33 @@ bwplot(results)
 # STATISTICAL TEST FOR CLASSIFICATION
     # Kolmogorov-Smirnov TEST
 
-#PERFORMANCE MEASURE BY Kolmogorov-Smirnov TEST IN R
+# PERFORMANCE MEASURE BY Kolmogorov-Smirnov TEST IN R
 require(kolmim)
-ks.test.imp(x=training_set$income,"pexp") # FIGURE HOW IT WORKS
+ks.test.imp(x=training_set$income,"pexp")   # FIGURE OUT HOW IT WORKS
 
 
 #######################################
 # validation the predicted values
+#######################################
 
 # 1. confusion matrix
 confusionMatrix(y_hat,test_set$alive)
 ## kappa statistic
-# kappa = (O-E)/(1-E) #where O is the observed accuracy and E is the expected accuracy under chance agreement
+# kappa = (O-E)/(1-E) # where O is the observed accuracy and E is the expected accuracy under chance agreement
 
 # 2.ROC curve ( FOR 2 CLASS MODEL)
-# The receiving operating characteristic is a measure of classifier performance. Using the proportion of positive data points that are correctly considered as positive and the proportion of negative data points that are mistakenly considered as positive(i.e false positive), we generate a graphic that shows the trade off between the rate at which you can correctly predict something with the rate of incorrectly predicting something. Ultimately, we're concerned about the area under the ROC curve, or AUROC. That metric ranges from 0.50 to 1.00, and values above 0.80 indicate that the model does a good job in discriminating between the two categories which comprise our target variable. Bear in mind that ROC curves can examine both target-x-predictor pairings and target-x-model performance.
+# The receiving operating characteristic is a measure of classifier performance. Using the proportion 
+# of positive data points that are correctly considered as positive and the proportion of negative data 
+# points that are mistakenly considered as positive(i.e false positive), we generate a graphic that 
+# shows the trade off between the rate at which you can correctly predict something with the rate of 
+# incorrectly predicting something. Ultimately, we're concerned about the area under the ROC curve, or AUROC. 
+# That metric ranges from 0.50 to 1.00, and values above 0.80 indicate that the model does a good job in 
+# discriminating between the two categories which comprise our target variable. Bear in mind that ROC curves 
+# can examine both target-x-predictor pairings and target-x-model performance.
+
 # install.packages("pROC")
 require(pROC)
+
 # Compute AUC for predicting y with individual independent variable
 f1 <- roc(alive~income,data = training_set) #shows the trade off between the rate at which you can correctly predict something with the rate of incorrectly predicting something
 plot(f1,col="red")
@@ -175,6 +184,7 @@ f2 <- roc(alive~no_of_wife,data = training_set)
 plot(f2,col="blue")
 f3 <- roc(alive~no_of_child,data = training_set)
 plot(f3,col="green")
+
 # auc() gives numeric value of area under curve which we can also get from f1,f2,f3 as well
 auc(f1) # Ultimately, we're concerned about the area under the ROC curve, or AUROC. That metric ranges from 0.50 to 1.00, and values above 0.80 indicate that the model does a good job in discriminating between the two categories which comprise our target variable
 auc(f2)
@@ -193,7 +203,6 @@ pred <- prediction(predictions = as.numeric(y_hat),labels=test_set$alive)
 perform <- performance(pred,measure = "tpr",x.measure="fpr")
 plot(perform)
 auc <- performance(pred,measure = "auc")
-auc
 auc@y.values[[1]]
 
 
@@ -205,9 +214,9 @@ auc@y.values[[1]]
  # 2.Boosting : Building multiple models (typically of the same type) each of which learns to fix the prediction errors of a prior model in the chain.
  # 3.Stacking : Building multiple models (typically of differing types) and supervisor model that learns how to best combine the predictions of the primary models.
 
-####################
+#########################################################################
 # 1. BOOSTING (C50,XGBOOST,ADABOOST,STOCHASTIC GRADIENT BOOSTING ETC)
-###################
+#########################################################################
 
 set.seed(12345)
 model_c50_cross <- train(form=alive~.,data=training_set,tuneLength=5,
@@ -231,16 +240,15 @@ model_ada_cross <- train(form=alive~.,data=training_set,tuneLength=5,
 
 
 set.seed(12345)
-# ran for 3 hours..stopped it
-# model_adaM1_cross <- train(form=alive~.,data=training_set,tuneLength=5,
+model_adaM1_cross <- train(form=alive~.,data=training_set,tuneLength=5,
                          # trControl=Control,method="AdaBoost.M1")
 
 #check for overfitting
 
 
 # variable importance
-varImp(model_c50_cross) # did not worked
-varImp(model_gbm_cross) # did not worked
+varImp(model_c50_cross) 
+varImp(model_gbm_cross)
 varImp(model_xgb_cross)
 varImp(model_ada_cross)
 
@@ -278,7 +286,7 @@ varImp(model_treebag_cross)
 varImp(model_rf_cross) 
 
 #ploting the models
-plot(model_treebag_cross) # did not worked.
+plot(model_treebag_cross) 
 plot(model_rf_cross)
 
 
@@ -308,6 +316,7 @@ comb_results <- resamples(models)
 summary(comb_results)
 dotplot(comb_results) 
 bwplot(comb_results)
+                           
 #correlation between results
 modelCor(comb_results)
 splom(comb_results)
@@ -318,10 +327,12 @@ stackcontrol <- trainControl(method = "repeatedcv",number=10,repeats = 10,savePr
 set.seed(12345)
 stack.svmRadial <- caretStack(models,method="svmRadial",trControl=stackcontrol,metric="Accuracy") # THIS IS ANOTHER MODEL
 class(stack.svmRadial) # Combine several predictive models via stacking
+                           
 #stack using RF
 stackcontrol <- trainControl(method = "repeatedcv",number=10,repeats = 10,savePredictions = T,classProbs = T)
 set.seed(12345)
 stack.rf <- caretStack(models,method="rf",trControl=stackcontrol,metric="Accuracy") # THIS IS ANOTHER MODEL
+                           
 #stack using glm
 stackcontrol <- trainControl(method = "repeatedcv",number=10,repeats = 10,savePredictions = T,classProbs = T)
 set.seed(12345)
